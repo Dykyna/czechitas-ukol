@@ -37,6 +37,7 @@ SELECT
     invoice_type,
     amount_w_vat,
     return_w_vat,
+    -- vypocet ceny bez DPH a osetreni zapornych hodnot
     IF(amount_w_vat/1.2 < 0, 0,amount_w_vat/1.2)  AS amount_wo_vat,
     date_issue,
     due_date,
@@ -74,6 +75,7 @@ SELECT
     contract_id, -- FK
     product_category,
     product_status,
+    -- prepocteni na cenu s dani a zaokrouhleni
     ROUND((price_wo_vat)*1.2,2) AS price_w_vat,
     price_wo_vat,
     -- oznaci produkty s dozivotnim pristupem
@@ -89,3 +91,4 @@ SELECT
   WHERE (product_status IS NOT NULL AND product_status != "disconnected" AND product_status NOT LIKE "%canceled%")
   AND (product_category LIKE "%product%" OR product_category LIKE "%rent%")
 )
+;
