@@ -1,0 +1,91 @@
+-- create view L2_branch
+CREATE OR REPLACE `czechitas-kurz.L2.L2_branch` AS (
+SELECT
+  branch_id, --PK
+  branch_name
+  FROM `czechitas-kurz.L1.L1_branch`
+  WHERE branch_name NOT LIKE "%unknown%"
+)
+;
+
+-- create view L2_contract
+CREATE OR REPLACE `czechitas-kurz.L2.L2_contract` AS (
+SELECT
+  contract_id, --PK
+  branch_id, -- FK
+  contract_valid_from,
+  contract_valid_to,
+  registred_date,
+  registration_end_reason,
+  prolongation_date,
+  flag_prolongation AS prolongation_flag,
+  contract_status,
+  activation_process_date,
+  signed_date,
+  flag_send_email
+
+  FROM `czechitas-kurz.L1.L1_contract`
+)
+;
+
+-- create view L2_invoice
+CREATE OR REPLACE `czechitas-kurz.L2.L2_invoice` AS (
+SELECT
+    invoice_id, -- PK
+    invoice_previous_id,
+    contract_id, -- FK
+    invoice_type,
+    amount_w_vat,
+    return_w_vat,
+    IF(amount_w_vat/1.2 < 0, 0,amount_w_vat/1.2)  AS amount_wo_vat,
+    date_issue,
+    due_date,
+    paid_date,
+    start_date,
+    end_date,
+    insert_date,
+    update_date,
+    flag_invoice_issued,
+    invoice_status,
+    ROW_NUMBER() OVER(PARTITION BY contract_id ORDER BY invoice_id ASC) AS invoice_order -- pořadí faktury pomocí contractu pomocí partition by a asc řazení
+    FROM 
+    `czechitas-kurz.L1.L1_invoice`
+    INNER JOIN `czechitas-kurz.L1.L1_contract` USING (contract_id)
+)
+;
+
+-- create view L2_product
+CREATE OR REPLACE `czechitas-kurz.L2.L2_product` AS (
+SELECT
+  product_id, -- PK
+  product_name,
+  product_type,
+  product_category
+  FROM `czechitas-kurz.L1.L1_product`
+  WHERE product_category LIKE "%product%" OR product_category LIKE "%rent%"
+)
+;
+
+-- create view L2_product_purchase
+CREATE OR REPLACE `czechitas-kurz.L2.L2_product_purchase` AS (
+SELECT
+    product_purchase_id, -- PK
+    product_id, -- FK
+    contract_id, -- FK
+    product_category,
+    product_status,
+    ROUND((price_wo_vat)*1.2,2) AS price_w_vat,
+    price_wo_vat,
+    -- oznaci produkty s dozivotnim pristupem
+    IF(product_valid_from = "2035-12-31",TRUE,FALSE) AS flag_unlimited_product,
+    product_valid_from,
+    product_valid_to,
+    measure_unit AS unit,
+    product_name,
+    product_type,
+    create_date,
+    date_update AS update_date
+  FROM `czechitas-kurz.L1.L1_product_purchase`
+  WHERE (product_status IS NOT NULL AND product_status != "disconnected" AND product_status NOT LIKE "%canceled%")
+  AND (product_category LIKE "%product%" OR product_category LIKE "%rent%")
+)
