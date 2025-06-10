@@ -1,0 +1,151 @@
+-- create view L1_branch
+CREATE OR REPLACE `czechitas-kurz.L1.L1_branch` AS (
+WITH base AS(
+SELECT
+id_branch AS branch_id, 
+branch_name,
+PARSE_DATE('%m/%e/%Y',date_update) AS product_status_update_date
+FROM `czechitas-kurz.L0_google_sheet.branch`
+QUALIFY ROW_NUMBER() OVER(PARTITION BY id_branch) = 1
+)
+SELECT
+branch_id, --PK
+branch_name,
+DATE(TIMESTAMP(product_status_update_date), "Europe/Prague") AS product_status_update_date
+FROM base
+WHERE branch_id != "NULL"
+)
+
+--create view L1 contract
+CREATE OR REPLACE `czechitas-kurz.L1.L1_contract` AS (
+SELECT
+id_contract as contract_id, --PK
+id_branch as branch_id, --FK
+DATE(TIMESTAMP(date_contract_valid_from), "Europe/Prague") as contract_valid_from,
+DATE(TIMESTAMP(date_contract_valid_to), "Europe/Prague") as contract_valid_to,
+DATE(TIMESTAMP(date_registered), "Europe/Prague")as registred_date,
+DATE(TIMESTAMP(date_signed), "Europe/Prague") as signed_date,
+DATE(TIMESTAMP(activation_process_date), "Europe/Prague") as activation_process_date,
+DATE(TIMESTAMP(prolongation_date), "Europe/Prague") as prolongation_date,
+registration_end_reason,
+flag_prolongation,
+flag_send_inv_email as flag_send_email,
+contract_status as contract_status
+from `czechitas-kurz.L0_crm.contract`
+WHERE id_contract IS NOT NULL
+QUALIFY ROW_NUMBER() OVER(PARTITION BY id_contract) = 1
+)
+
+-- create view L1_invoice
+CREATE OR REPLACE `czechitas-kurz.L1.L1_invoice` AS (
+SELECT
+  id_invoice AS invoice_id --PK
+, id_invoice_old AS invoice_previous_id
+, invoice_id_contract AS contract_id --FK
+, status AS invoice_status
+, id_branch AS branch_id --FK
+, number AS invoice_number
+, IF(status < 100, TRUE,FALSE) AS flag_invoice_issued
+, DATE(TIMESTAMP(date), "Europe/Prague") AS date_issue
+, DATE(TIMESTAMP(scadent), "Europe/Prague") AS due_date
+, DATE(TIMESTAMP(date_paid), "Europe/Prague") AS paid_date
+, DATE(TIMESTAMP(start_date), "Europe/Prague") AS start_date
+, DATE(TIMESTAMP(end_date), "Europe/Prague") AS end_date
+, DATE(TIMESTAMP(date_insert), "Europe/Prague") AS insert_date
+, DATE(TIMESTAMP(date_update), "Europe/Prague") AS update_date
+, value AS amount_w_vat
+, invoice_type AS invoice_type_id
+, CASE
+  WHEN invoice_type = 1 THEN "invoice"
+  WHEN invoice_type = 2 THEN "return"
+  WHEN invoice_type = 3 THEN "credit_note"
+  WHEN invoice_type = 4 THEN "other"
+END AS invoice_type
+, value_storno AS return_w_vat
+, flag_paid_currier
+, payed AS amount_paid
+FROM `czechitas-kurz.L0_accounting_system.invoices`
+)
+
+-- create view L1_invoice_load
+CREATE OR REPLACE `czechitas-kurz.L1.L1_invoice_load` AS (
+select
+id_load as invoice_load_id, --PK
+id_contract as contract_id, --FK
+id_package as package_id, --FK
+id_invoice as invoice_id, --FK
+id_package as product_id, --FK
+notlei as price_wo_vat_usd,
+tva as vat_rate,
+value as price_w_vat_usd,
+payed as paid_w_vat_usd,
+um AS unit, -- popsat proc to delame
+quantity,
+DATE(TIMESTAMP(start_date), "Europe/Prague") as start_date,
+DATE(TIMESTAMP(end_date), "Europe/Prague") as end_date,
+DATE(TIMESTAMP(date_insert), "Europe/Prague") as date_insert,
+DATE(TIMESTAMP(date_update), "Europe/Prague") as date_updateid_package
+from `czechitas-kurz.L0_accounting_system.invoices_load`
+WHERE id_load IS NOT NULL
+QUALIFY ROW_NUMBER() OVER(PARTITION BY id_load) = 1
+)
+
+-- create view L1_product
+CREATE OR REPLACE `czechitas-kurz.L1.L1_product` AS (
+SELECT
+id_product AS product_id, --PK
+name AS product_name,
+type AS product_type,
+category AS product_category,
+is_vat_applicable,
+DATE(TIMESTAMP(date_update), "Europe/Prague") AS product_update_date
+FROM `czechitas-kurz.L0_google_sheet.product`
+WHERE id_product IS NOT NULL
+QUALIFY ROW_NUMBER() OVER(PARTITION BY id_product) = 1
+)
+
+-- create view L1_product_purchase
+CREATE OR REPLACE `czechitas-kurz.L1.L1_product_purchase` AS (
+select
+id_package as product_purchase_id, -- PK
+id_contract as contract_id, -- FK
+id_package_template as product_id, -- FK
+DATE(TIMESTAMP(pp.date_insert), "Europe/Prague") as create_date,
+DATE(TIMESTAMP(pp.start_date), "Europe/Prague") as product_valid_from,
+DATE(TIMESTAMP(pp.end_date), "Europe/Prague") as product_valid_to,
+price_wo_vat_usd,
+DATE(TIMESTAMP(date_update), "Europe/Prague") as date_update,
+--sjednoceni casovych udaju
+case 
+    when measure_unit IN ('mesia','m?síce','m?si?1ce','měsice','mesiace','měsíce','mesice') then  'month'
+    when measure_unit = "kus" then "item"
+    when measure_unit = "den" then 'day'
+    when measure_unit = "min" then 'minute'
+    when measure_unit = '0' then null 
+    else measure_unit END AS measure_unit,
+package_status as product_status_id,
+product_status_name as product_status,
+product_name,
+product_type,
+product_category
+from `czechitas-kurz.L0_crm.package_puchases` pp
+LEFT JOIN `czechitas-kurz.L1.L1_status` ON (product_status_id = package_status)
+LEFT JOIN `czechitas-kurz.L1.L1_invoice_load` il ON (pp.id_contract = il.contract_id)
+LEFT JOIN `czechitas-kurz.L1.L1_product` pr ON (pr.product_id = pp.id_package_template)
+WHERE id_package IS NOT NULL
+QUALIFY ROW_NUMBER() OVER(PARTITION BY id_package) = 1
+)
+
+-- create view L1_status
+CREATE OR REPLACE `czechitas-kurz.L1.L1_product_purchase` AS (
+SELECT
+CAST(id_status AS INT) AS product_status_id
+, LOWER(status_name) AS product_status_name
+, DATE(TIMESTAMP(date_update), "Europe/Prague") AS product_status_update_date
+FROM `czechitas-kurz.L0_google_sheet.status`
+WHERE
+  id_status IS NOT NULL
+  AND status_name IS NOT NULL
+-- vezme první řádek z duplicit
+QUALIFY ROW_NUMBER() OVER(PARTITION BY id_status) = 1
+)
