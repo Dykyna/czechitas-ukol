@@ -1,0 +1,61 @@
+-- create view L3_branch
+CREATE OR REPLACE `czechitas-kurz.L3.L3_branch` AS (
+  SELECT
+    branch_id, -- PK
+    branch_name
+  FROM `czechitas-kurz.L2.L2_branch`
+)
+;
+
+-- create view L3_contract
+CREATE OR REPLACE `czechitas-kurz.L3.L3_contract` AS (
+SELECT
+contract_id, -- PK
+branch_id, -- FK
+contract_valid_from,
+contract_valid_to,
+registration_end_reason,
+  CASE 
+    WHEN DATE_DIFF(DATE(contract_valid_to), DATE(contract_valid_from), DAY) / 365.25 < 0.5 THEN 'less than half year'
+    WHEN DATE_DIFF(DATE(contract_valid_to), DATE(contract_valid_from), DAY) / 365.25 BETWEEN 0.5 AND 1 THEN '1 year'
+    WHEN DATE_DIFF(DATE(contract_valid_to), DATE(contract_valid_from), DAY) / 365.25 > 1 AND 
+         DATE_DIFF(DATE(contract_valid_to), DATE(contract_valid_from), DAY) / 365.25 <= 2 THEN '2 years'
+    WHEN DATE_DIFF(DATE(contract_valid_to), DATE(contract_valid_from), DAY) / 365.25 > 2 THEN 'more than 2 years'
+  END AS contract_duration,
+EXTRACT(YEAR FROM contract_valid_from) AS start_year_of_contract,
+contract_status,
+prolongation_flag AS flag_prolongation
+FROM `czechitas-kurz.L2.L2_contract`
+WHERE contract_valid_from IS NOT NULL AND contract_valid_to IS NOT NULL AND contract_valid_to > contract_valid_from
+)
+;
+
+-- create L3_invoice
+CREATE OR REPLACE `czechitas-kurz.L3.L3_invoice` AS (
+SELECT
+invoice_id, -- PK
+contract_id, -- FK
+amount_w_vat,
+return_w_vat,
+amount_w_vat - return_w_vat AS total_paid,
+'USD' AS currency,
+paid_date
+FROM `czechitas-kurz.L2.L2_invoice`
+)
+;
+
+-- create L3_product
+CREATE OR REPLACE `czechitas-kurz.L3.L3_product` AS (
+SELECT
+product_purchase_id, -- PK
+product_id, -- FK
+product_name,
+product_type,
+product_valid_from,
+product_valid_to,
+unit,
+flag_unlimited_product
+FROM `czechitas-kurz.L2.L2_product_purchase`
+WHERE product_purchase_id IS NOT NULL
+)
+;
