@@ -37,6 +37,7 @@ invoice_id, -- PK
 contract_id, -- FK
 amount_w_vat,
 return_w_vat,
+-- vypocet skutecne zaplacene castky bez storen
 amount_w_vat - return_w_vat AS total_paid,
 'USD' AS currency,
 paid_date
