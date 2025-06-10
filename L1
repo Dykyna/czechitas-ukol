@@ -15,6 +15,7 @@ DATE(TIMESTAMP(product_status_update_date), "Europe/Prague") AS product_status_u
 FROM base
 WHERE branch_id != "NULL"
 )
+;
 
 --create view L1 contract
 CREATE OR REPLACE `czechitas-kurz.L1.L1_contract` AS (
@@ -35,6 +36,7 @@ from `czechitas-kurz.L0_crm.contract`
 WHERE id_contract IS NOT NULL
 QUALIFY ROW_NUMBER() OVER(PARTITION BY id_contract) = 1
 )
+;
 
 -- create view L1_invoice
 CREATE OR REPLACE `czechitas-kurz.L1.L1_invoice` AS (
@@ -66,6 +68,7 @@ END AS invoice_type
 , payed AS amount_paid
 FROM `czechitas-kurz.L0_accounting_system.invoices`
 )
+;
 
 -- create view L1_invoice_load
 CREATE OR REPLACE `czechitas-kurz.L1.L1_invoice_load` AS (
@@ -89,6 +92,7 @@ from `czechitas-kurz.L0_accounting_system.invoices_load`
 WHERE id_load IS NOT NULL
 QUALIFY ROW_NUMBER() OVER(PARTITION BY id_load) = 1
 )
+;
 
 -- create view L1_product
 CREATE OR REPLACE `czechitas-kurz.L1.L1_product` AS (
@@ -135,6 +139,7 @@ LEFT JOIN `czechitas-kurz.L1.L1_product` pr ON (pr.product_id = pp.id_package_te
 WHERE id_package IS NOT NULL
 QUALIFY ROW_NUMBER() OVER(PARTITION BY id_package) = 1
 )
+;
 
 -- create view L1_status
 CREATE OR REPLACE `czechitas-kurz.L1.L1_product_purchase` AS (
@@ -149,3 +154,4 @@ WHERE
 -- vezme první řádek z duplicit
 QUALIFY ROW_NUMBER() OVER(PARTITION BY id_status) = 1
 )
+;
