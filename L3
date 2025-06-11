@@ -33,15 +33,18 @@ WHERE contract_valid_from IS NOT NULL AND contract_valid_to IS NOT NULL AND cont
 -- create L3_invoice
 CREATE OR REPLACE `czechitas-kurz.L3.L3_invoice` AS (
 SELECT
-invoice_id, -- PK
+invoice_id, --PK
 contract_id, -- FK
+product_id, -- FK
 amount_w_vat,
 return_w_vat,
--- vypocet skutecne zaplacene castky bez storen
+-- celkem zaplaceno bez storen
 amount_w_vat - return_w_vat AS total_paid,
 'USD' AS currency,
 paid_date
 FROM `czechitas-kurz.L2.L2_invoice`
+LEFT JOIN `czechitas-kurz.L2.L2_product_purchase` USING (contract_id)
+LEFT JOIN `czechitas-kurz.L3.L3_product` USING (product_id)
 )
 ;
 
