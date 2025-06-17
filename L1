@@ -142,7 +142,7 @@ QUALIFY ROW_NUMBER() OVER(PARTITION BY id_package) = 1
 ;
 
 -- create view L1_status
-CREATE OR REPLACE `czechitas-kurz.L1.L1_product_purchase` AS (
+CREATE OR REPLACE `czechitas-kurz.L1.L1_status` AS (
 SELECT
 CAST(id_status AS INT) AS product_status_id
 , LOWER(status_name) AS product_status_name
