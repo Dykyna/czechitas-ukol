@@ -52,6 +52,7 @@ SELECT
     FROM 
     `czechitas-kurz.L1.L1_invoice`
     INNER JOIN `czechitas-kurz.L1.L1_contract` USING (contract_id)
+    WHERE contract_status = "Active" OR contract_status = "active"
 )
 ;
 
